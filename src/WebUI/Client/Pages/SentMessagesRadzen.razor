@@ -1,0 +1,47 @@
+﻿@page "/sentradzen"
+@attribute [Authorize]
+@inject IMessagesClient Client
+@inject NavigationManager NavigationManager
+@inject ILogger<SentMessagesRadzen> Logger
+
+<PageTitle>Sent</PageTitle>
+
+<h1>Sent Messages using Radzen DataTable</h1>
+
+<RadzenDataGrid Data="@sentMessageDtos" TItem="SentMessageDto"
+                LoadData="@LoadData" Count="@count"
+                RowSelect="@OnRowSelect"
+                AllowPaging="true" PageSize="@pageSize"
+                AllowSorting="true" AllowMultiColumnSorting="true"
+                AllowFiltering="true" FilterMode="FilterMode.Advanced" LogicalFilterOperator="LogicalFilterOperator.Or">
+    <Columns>
+        <RadzenDataGridColumn TItem="SentMessageDto" Property="ToAddress" Title="To Address" />
+        <RadzenDataGridColumn TItem="SentMessageDto" Property="FromAddress" Title="From Address" />
+        <RadzenDataGridColumn TItem="SentMessageDto" Property="SummaryContent" Title="Content" Sortable="false" Filterable="false" />
+        <RadzenDataGridColumn TItem="SentMessageDto" Property="Created" Title="Sent Date" />
+    </Columns>
+</RadzenDataGrid>
+
+
+@code {
+    private ICollection<SentMessageDto>? sentMessageDtos;
+    private int count;
+    private int pageSize = 20;
+
+    async Task LoadData(LoadDataArgs args)
+    {
+        var result = await Client.GetSentMessagesAsync((args.Skip.Value / pageSize) + 1, args.Top.Value, args.Filter, args.OrderBy);
+        sentMessageDtos = result.Items;
+
+        // Important!!! Make sure the Count property of RadzenDataGrid is set.
+        count = result.TotalCount;
+
+        // Add StateHasChanged(); for DataGrid to update if your LoadData method is async.
+        await InvokeAsync(StateHasChanged);
+    }
+
+    void OnRowSelect(SentMessageDto sentMessageDto)
+    {
+        NavigationManager.NavigateTo($"thread/{sentMessageDto.MessageThreadId}");
+    }
+}

@@ -1,0 +1,59 @@
+﻿@page "/sent"
+@attribute [Authorize]
+@inject IMessagesClient Client
+@inject NavigationManager NavigationManager
+
+<PageTitle>Sent</PageTitle>
+
+<h1>Sent Messages</h1>
+
+@if (sentMessageDtos == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table table-bordered table-hover">
+        <thead>
+            <tr>
+                <th scope="col">To Address</th>
+                <th scope="col">From Address</th>
+                <th scope="col">Content</th>
+                <th scope="col">Sent Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var sentMessageDto in sentMessageDtos)
+            {
+                <tr style="cursor: pointer;" @onclick="() => NavigateToThread(sentMessageDto.MessageThreadId)">
+                    <td>@sentMessageDto.ToAddress</td>
+                    <td>@sentMessageDto.FromAddress</td>
+                    <td>@sentMessageDto.SummaryContent...</td>
+                    <td>@sentMessageDto.Created.ToLocalTime()</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private ICollection<SentMessageDto>? sentMessageDtos;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var result = await Client.GetSentMessagesAsync(1, 10, null, null);
+            sentMessageDtos = result.Items;
+        }
+        catch (AccessTokenNotAvailableException exception)
+        {
+            exception.Redirect();
+        }
+    }
+
+    private void NavigateToThread(int messageId)
+    {
+        NavigationManager.NavigateTo($"thread/{messageId}");
+    }
+}

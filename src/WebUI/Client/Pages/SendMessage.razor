@@ -1,0 +1,37 @@
+﻿@page "/send"
+@attribute [Authorize(Roles = "Administrator")]
+@inject IMessagesClient Client
+@inject ILogger<SendMessage> Logger
+@inject IToastService toastService
+
+<PageTitle>Send Message</PageTitle>
+
+<h3>Send Message</h3>
+
+<EditForm Model="@createMessageCommand" OnValidSubmit="@HandleValidSubmit">
+    <FluentValidationValidator />
+    <ValidationSummary />
+
+    <div class="mb-3">
+        <label for="message-to-email" class="form-label">To Email Address</label>
+        <InputText id="message-to-email" type="email" class="form-control" placeholder="Enter email" @bind-Value="createMessageCommand.ToEmailAddress" />
+    </div>
+
+    <div class="mb-3">
+        <label for="message-content" class="form-label">Content</label>
+        <InputTextArea id="message-content" type="text" class="form-control" placeholder="Enter message content" rows="10" @bind-Value="createMessageCommand.Content" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Submit</button>
+</EditForm>
+
+@code {
+    private Messaging.Application.Messages.Commands.CreateMessage.CreateMessageCommand createMessageCommand = new();
+
+    private async void HandleValidSubmit()
+    {
+        Logger.LogInformation("HandleValidSubmit called");
+        await Client.CreateAsync(new CreateMessageCommand{ Content = createMessageCommand.Content, ToEmailAddress = createMessageCommand.ToEmailAddress });
+        toastService.ShowSuccess("Message was sent successfully", "Success!");
+    }
+}

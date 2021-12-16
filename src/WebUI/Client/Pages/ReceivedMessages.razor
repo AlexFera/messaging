@@ -1,0 +1,57 @@
+﻿@page "/inbox"
+@attribute [Authorize]
+@inject IMessagesClient Client
+@inject NavigationManager NavigationManager
+
+<PageTitle>Inbox</PageTitle>
+
+<h1>Received Messages</h1>
+
+@if (receivedMessageDtos == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table table-bordered table-hover">
+        <thead>
+            <tr>
+                <th scope="col">From Address</th>
+                <th scope="col">Content</th>
+                <th scope="col">Sent Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var receivedMessageDto in receivedMessageDtos)
+            {
+                <tr style="cursor: pointer;" @onclick="() => NavigateToThread(receivedMessageDto.MessageThreadId)">
+                    <td>@receivedMessageDto.FromAddress</td>
+                    <td>@receivedMessageDto.SummaryContent...</td>
+                    <td>@receivedMessageDto.Created.ToLocalTime()</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private ICollection<ReceivedMessageDto>? receivedMessageDtos;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var result = await Client.GetReceivedMessagesAsync(1, 10);
+            receivedMessageDtos = result.Items;
+        }
+        catch (AccessTokenNotAvailableException exception)
+        {
+            exception.Redirect();
+        }
+    }
+
+    private void NavigateToThread(int messageId)
+    {
+        NavigationManager.NavigateTo($"thread/{messageId}");
+    }
+}

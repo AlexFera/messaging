@@ -1,0 +1,42 @@
+﻿@page "/dashboard"
+@attribute [Authorize]
+@inject IMessagesClient Client
+
+<PageTitle>Dashboard</PageTitle>
+
+<h1>Radzen Blazor Chart column series</h1>
+<div class="container">
+    <div class="row">
+        <div class="col-sm-12 my-5">
+            <RadzenChart>
+                <RadzenColumnSeries Data="@sentMessagesGroupedByYear" Title="Years" CategoryProperty="Year" ValueProperty="TotalCount" />
+                <RadzenColumnOptions Radius="5" />
+                <RadzenValueAxis>
+                    <RadzenGridLines Visible="true" />
+                    <RadzenAxisTitle Text="Total number of sent messages" />
+                </RadzenValueAxis>
+                <RadzenCategoryAxis>
+                    <RadzenGridLines Visible="true" />
+                    <RadzenAxisTitle Text="Year" />
+                </RadzenCategoryAxis>
+            </RadzenChart>
+        </div>
+    </div>
+</div>
+
+
+@code {
+    private IEnumerable<SentMessageByYearDto>? sentMessagesGroupedByYear;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            sentMessagesGroupedByYear = await Client.GetSentMessagesByYearAsync(new GetSentMessagesByYearQuery());
+        }
+        catch (AccessTokenNotAvailableException exception)
+        {
+            exception.Redirect();
+        }
+    }
+}

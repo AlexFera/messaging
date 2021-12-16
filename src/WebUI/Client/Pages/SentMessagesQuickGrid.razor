@@ -1,0 +1,100 @@
+﻿@page "/sentquickgrid"
+@using Microsoft.EntityFrameworkCore
+@inject DataSynchronizer DataSynchronizer
+@implements IDisposable
+@attribute [Authorize]
+<PageTitle>Sent Messages using QuickGrid</PageTitle>
+<SyncStatus />
+
+@if (db is not null)
+{
+    <div class="inventory-grid">
+        <Grid Virtualize="true" Items="@GetFilteredSentMessages()" ItemKey="@(x => x.Id)" ItemSize="10">
+            <PropertyColumn Title="Id" Property="@(x => x.Id)" Class="col-location">
+                <ColumnOptions>
+                    <p>Min Id</p>
+                    <input type="range" @bind="minId" @bind:event="oninput" min="0" max="50000" />
+                    <p>Max Id</p>
+                    <input type="range" @bind="maxId" @bind:event="oninput" min="0" max="50000" />
+                </ColumnOptions>
+            </PropertyColumn>
+            <PropertyColumn Title="To Address" Property="@(x => x.ToAddress)" Class="col-location">
+                <ColumnOptions>
+                    <input @bind="searchToAddress" @bind:event="oninput" type="search" placeholder="Search..." />
+                </ColumnOptions>
+            </PropertyColumn>
+            <PropertyColumn Title="From Address" Property="@(x => x.FromAddress)" Class="col-location">
+                <ColumnOptions>
+                    <input @bind="searchFromAddress" @bind:event="oninput" type="search" placeholder="Search..." />
+                </ColumnOptions>
+            </PropertyColumn>
+            <PropertyColumn Title="Content" Property="@(x => x.SummaryContent)" Class="col-location" />
+            <PropertyColumn Title="Created" Property="@(x => x.Created)" Class="col-location">
+                <ColumnOptions>
+                    <input @bind="searchCreated" @bind:event="oninput" type="search" placeholder="Search..." />
+                </ColumnOptions>
+            </PropertyColumn>
+
+        </Grid>
+        <div class="status-bar">
+            Showing @GetFilteredSentMessages()?.Count().ToString("N0") items
+        </div>
+    </div>
+}
+
+@code {
+    ClientSideDbContext? db;
+
+    string searchToAddress = string.Empty;
+    string searchFromAddress = string.Empty;
+    string searchCreated = string.Empty;
+    SentMessageBatchDto? selectedSentMessage;
+    int minId, maxId = 50000;
+
+    IQueryable<SentMessageBatchDto>? GetFilteredSentMessages()
+    {
+        if (db is null)
+        {
+            return null;
+        }
+
+        var result = db.SentMessages.AsNoTracking().AsQueryable();
+
+        if (!string.IsNullOrEmpty(searchToAddress))
+        {
+            result = result.Where(x => EF.Functions.Like(x.ToAddress, searchToAddress.Replace("%", "\\%") + "%", "\\"));
+        }
+
+        if (!string.IsNullOrEmpty(searchFromAddress))
+        {
+            result = result.Where(x => EF.Functions.Like(x.FromAddress, searchFromAddress.Replace("%", "\\%") + "%", "\\"));
+        }
+
+        if (!string.IsNullOrEmpty(searchCreated))
+        {
+            result = result.Where(x => EF.Functions.Like(x.Created, searchCreated.Replace("%", "\\%") + "%", "\\"));
+        }
+        if (minId > 0)
+        {
+            result = result.Where(x => x.Id >= minId);
+        }
+        if (maxId < 50000)
+        {
+            result = result.Where(x => x.Id <= maxId);
+        }
+
+        return result;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        db = await DataSynchronizer.GetPreparedDbContextAsync();
+        DataSynchronizer.OnUpdate += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        db?.Dispose();
+        DataSynchronizer.OnUpdate -= StateHasChanged;
+    }
+}

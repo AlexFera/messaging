@@ -1,0 +1,109 @@
+﻿@page "/thread/{messageThreadId:int}"
+@using System.Security.Claims
+@attribute [Authorize]
+@inject IMessagesClient Client
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IToastService toastService
+
+<div class="container comments-box">
+
+    <div class="p-5 my-4 rounded-3">
+        <h1 class="display-4 mb-0">Threaded Messages</h1>
+    </div>
+
+    @if (messages == null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else
+    {
+        <ul class="timeline-comments">
+
+            @foreach (var message in messages)
+            {
+                <li class="timeline-comment">
+                    <div class="timeline-comment-wrapper">
+                        <div class="card">
+                            <div class="card-header d-flex align-items-center">
+                                <a href="#" class="d-flex align-items-center">
+                                    <h5>@message.CreatedBy</h5>
+                                </a>
+                                <div class="comment-date" data-toggle="tooltip" title="@message.Created.ToString()" data-placement="top" data-original-title="@message.Created.ToString()">@message.Created.ToString()</div>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">@message.Content</p>
+                            </div>
+                            <div class="card-footer bg-white p-2">
+                                @if (message.SendingUserEmail != currrentUserEmail && !showReply)
+                                {
+                                    <button type="button" class="btn btn-secondary btn-sm" @onclick="ToggleShowReply">Reply</button>
+                                }
+                                <small class="text-muted ms-2">Last updated X mins ago</small>
+                            </div>
+                        </div>
+                    </div>
+                </li>
+            }
+
+        </ul>
+    }
+
+    @if (showReply)
+    {
+        <EditForm Model="@createMessageReplyCommand" OnValidSubmit="@HandleValidSubmit">
+            <FluentValidationValidator />
+            <ValidationSummary />
+            <div class="card">
+                <div class="card-body">
+                    <InputTextArea id="message-reply-content" class="form-control" placeholder="Enter message content" rows="10" @bind-Value="createMessageReplyCommand.Content" />
+                </div>
+                <div class="card-footer bg-white p-2">
+                    <button type="submit" class="btn btn-primary btn-sm">Send</button>
+                    <button type="button" class="btn btn-secondary btn-sm" @onclick="ToggleShowReply">Cancel</button>
+                    <span style="cursor: pointer;" class="oi oi-paperclip"></span>
+                </div>
+            </div>
+        </EditForm>
+    }
+</div>
+
+@code {
+    private bool showReply;
+    private ICollection<MessageDto>? messages;
+    private string? currrentUserEmail;
+    private Messaging.Application.Messages.Commands.CreateMessageReply.CreateMessageReplyCommand createMessageReplyCommand = new();
+
+    [Parameter]
+    public int MessageThreadId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            currrentUserEmail = authState.User.FindFirst(c => c.Type == "email")?.Value;
+
+            createMessageReplyCommand.MessageThreadId = MessageThreadId;
+            messages = await Client.GetMessagesInThreadAsync(MessageThreadId);
+        }
+        catch (AccessTokenNotAvailableException exception)
+        {
+            exception.Redirect();
+        }
+    }
+
+    private async void HandleValidSubmit()
+    {
+        await Client.CreateMessageReplyAsync(new CreateMessageReplyCommand { Content = createMessageReplyCommand.Content, MessageThreadId = createMessageReplyCommand.MessageThreadId } );
+        toastService.ShowSuccess("Reply was sent successfully", "Success!");
+
+        messages = await Client.GetMessagesInThreadAsync(MessageThreadId);
+        this.ToggleShowReply();
+        this.StateHasChanged();
+    }
+
+    private void ToggleShowReply()
+    {
+        showReply = !showReply;
+    }
+}
